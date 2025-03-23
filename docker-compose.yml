@@ -1,0 +1,77 @@
+version: '3.9'
+
+services:
+  app:
+    image: eth_wallet
+    container_name: eth_wallets
+    command: runserver 0.0.0.0:8000
+    ports:
+      - 8000:8000
+    env_file:
+      - ./.env.dev
+    depends_on:
+      - migrate
+
+  db:
+    image: postgres:17
+    container_name: wallets_db
+    restart: always
+    env_file:
+      - ./.env.db
+    ports:
+      - 5432:5432
+
+  migrate:
+    image: eth_wallet
+    restart: on-failure
+    command: migrate
+    env_file:
+      - ./.env.dev
+    depends_on:
+      - db
+
+  celery:
+    image: eth_wallet
+    entrypoint: ""
+    command: celery -A ETHwallets worker -l INFO
+    restart: always
+    volumes:
+      - ./celery/data/:/usr/utils/data/celery
+    env_file:
+      - ./.env.celery.flower
+    depends_on:
+      - app
+      - redis
+      - db
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+
+  flower:
+    image: eth_wallet
+    entrypoint: ""
+    ports:
+      - 5555:5555
+    command: celery -A ETHwallets flower
+    volumes:
+      - ./.:/app
+    depends_on:
+      - app
+      - redis
+      - celery
+      - db
+
+  celery-beat:
+    image: eth_wallet
+    container_name: celery-beat
+    command: celery -A ETHwallets beat -l INFO
+    volumes:
+      - ./.:/app
+    depends_on:
+      - app
+
+  redis:
+    image: redis:4-alpine
+    ports:
+      - 6379:6379
+    volumes:
+      - ./redis/data/:/usr/utils/app

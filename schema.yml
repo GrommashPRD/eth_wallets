@@ -1,0 +1,135 @@
+openapi: 3.0.3
+info:
+  title: ''
+  version: 0.0.0
+paths:
+  /api/v1/transactions/:
+    post:
+      operationId: api_v1_transactions_create
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Transaction'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Transaction'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Transaction'
+        required: true
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+          description: ''
+  /api/v1/wallets/:
+    get:
+      operationId: api_v1_wallets_retrieve
+      description: Только superuser сможет         воспользоваться данным методом
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Wallet'
+          description: ''
+    post:
+      operationId: api_v1_wallets_create
+      description: |-
+        Создавать кошелек может кто угодно         заданием не определена         аутентификация и авторизация
+        :param request:
+        :return:
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Wallet'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Wallet'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Wallet'
+        required: true
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Wallet'
+          description: ''
+components:
+  schemas:
+    Transaction:
+      type: object
+      properties:
+        from_wallet:
+          type: string
+          maxLength: 255
+        to_wallet:
+          type: string
+          maxLength: 255
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,2}(?:\.\d{0,18})?$
+        currency:
+          type: string
+          default: ETH
+          maxLength: 3
+      required:
+      - amount
+      - from_wallet
+      - to_wallet
+    Wallet:
+      type: object
+      properties:
+        wallet_id:
+          type: integer
+          readOnly: true
+        currency:
+          type: string
+          maxLength: 3
+        balance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,8})?$
+        public_key:
+          type: string
+          maxLength: 255
+        private_key:
+          type: string
+          maxLength: 255
+      required:
+      - private_key
+      - public_key
+      - wallet_id
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sessionid
