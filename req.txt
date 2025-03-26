@@ -19,6 +19,7 @@ click-repl==0.3.0
 colorama==0.4.6
 cytoolz==1.0.1
 Django==5.1.7
+django-prometheus==2.3.1
 djangorestframework==3.15.2
 drf-spectacular==0.28.0
 eth-account==0.13.5

@@ -4,7 +4,7 @@ services:
   app:
     image: eth_wallet
     container_name: eth_wallets
-    command: runserver 0.0.0.0:8000
+    command: create_superuser && runserver 0.0.0.0:8000
     ports:
       - 8000:8000
     env_file:
@@ -20,6 +20,11 @@ services:
       - ./.env.db
     ports:
       - 5432:5432
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "postgres" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   migrate:
     image: eth_wallet
@@ -75,3 +80,25 @@ services:
       - 6379:6379
     volumes:
       - ./redis/data/:/usr/utils/app
+
+
+  prometheus:
+    image: prom/prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - "./prometheus.yml:/etc/prometheus/prometheus.yml"
+
+  grafana:
+    image: grafana/grafana:latest
+    restart: always
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_storage:/var/lib/grafana
+    depends_on:
+      - prometheus
+
+
+volumes:
+  grafana_storage:
