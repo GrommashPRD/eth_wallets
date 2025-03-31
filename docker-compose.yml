@@ -4,12 +4,13 @@ services:
   app:
     image: eth_wallet
     container_name: eth_wallets
-    command: create_superuser && runserver 0.0.0.0:8000
+    command: runserver 0.0.0.0:8000 && create_superuser
     ports:
       - 8000:8000
     env_file:
       - ./.env.dev
     depends_on:
+      - redis
       - migrate
 
   db:
@@ -33,7 +34,8 @@ services:
     env_file:
       - ./.env.dev
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   celery:
     image: eth_wallet
@@ -48,8 +50,6 @@ services:
       - app
       - redis
       - db
-    environment:
-      - CELERY_BROKER_URL=redis://redis:6379/0
 
   flower:
     image: eth_wallet
@@ -67,11 +67,11 @@ services:
 
   celery-beat:
     image: eth_wallet
-    container_name: celery-beat
-    command: celery -A ETHwallets beat -l INFO
+    command: celery -A ETHwallets beat
     volumes:
       - ./.:/app
     depends_on:
+      - redis
       - app
 
   redis:

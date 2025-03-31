@@ -3,16 +3,18 @@ from django.urls import reverse
 from rest_framework import status
 from wallet.models import Wallet, Transaction
 import uuid
+import logging
+
+logger = logging.getLogger('tests')
+
 
 @pytest.mark.django_db
 def test_successful_transaction(client):
-    # Создаем тестовые кошельки
     from_wallet = Wallet.objects.create(public_key=str(uuid.uuid4()), private_key=str(uuid.uuid4()), balance=100)
     to_wallet = Wallet.objects.create(public_key=str(uuid.uuid4()), private_key=str(uuid.uuid4()), balance=50)
 
-    url = '/api/v1/transactions/'  # Замените на фактическое имя вашего URL
+    url = '/api/v1/transactions/'
 
-    # Данные для запроса
     data = {
         'from_wallet': from_wallet.public_key,
         'to_wallet': to_wallet.public_key,
@@ -20,20 +22,16 @@ def test_successful_transaction(client):
         'currency': 'ETH'
     }
 
-    # Отправляем POST запрос
     response = client.post(url, data=data)
 
-    # Проверяем, что статус ответа 201 и транзакция была создана
     assert response.status_code == status.HTTP_201_CREATED
     assert 'hash' in response.data
 
-    # Проверяем, что баланс кошельков изменился правильно
     from_wallet.refresh_from_db()
     to_wallet.refresh_from_db()
     assert from_wallet.balance == 70
     assert to_wallet.balance == 80
 
-    # Проверяем, что транзакция была создана
     assert Transaction.objects.count() == 1
 
 
@@ -85,7 +83,7 @@ def test_invalid_currency(client):
         'from_wallet': from_wallet.public_key,
         'to_wallet': to_wallet.public_key,
         'amount': 30,
-        'currency': 'BTC'  # Неверная валюта
+        'currency': 'BTC'
     }
 
     response = client.post(url, data=data)

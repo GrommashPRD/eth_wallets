@@ -1,11 +1,10 @@
-# test_views.py
+from rest_framework import status
+from wallet.models import Wallet
 
 import pytest
+import logging
 
-from rest_framework import status
-
-from wallet.models import Wallet  # Убедитесь, что вы импортировали вашу модель Wallet
-
+logger = logging.getLogger('tests')
 
 @pytest.mark.django_db
 class TestCreateWalletView:
@@ -19,7 +18,6 @@ class TestCreateWalletView:
         assert 'currency' in response_data['wallet']
         assert 'public_key' in response_data['wallet']
 
-        # Проверка, что кошелек был успешно сохранен в базе данных
         wallet_exists = Wallet.objects.filter(wallet_id=response_data["wallet"].get("id")).exists()
         assert wallet_exists
 
@@ -31,7 +29,6 @@ class TestCreateWalletView:
         assert 'error' in response_data
         assert response_data['error'] == 'Только ETH разрешен для создания кошелька'
 
-        # Проверка, что кошелек не был создан
         wallets = Wallet.objects.all()
         assert wallets.count() == 0
 
@@ -42,8 +39,7 @@ class TestCreateWalletView:
 
         response_data = response.json()
         assert 'error' in response_data
-        assert response_data['error'] == 'Только ETH разрешен для создания кошелька'  # Убедитесь, что у вас такая обработка ошибки
+        assert response_data['error'] == 'Только ETH разрешен для создания кошелька'
 
-        # Проверка, что кошелек не был создан
         wallets = Wallet.objects.all()
         assert wallets.count() == 0
