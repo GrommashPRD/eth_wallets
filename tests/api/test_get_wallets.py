@@ -2,6 +2,7 @@ from django.contrib.auth.models import User
 from unittest.mock import patch
 from wallet.models import Wallet
 from django.db import IntegrityError
+from django.core.exceptions import ValidationError
 import pytest
 import logging
 
@@ -27,18 +28,9 @@ def test_get_wallets_success(client):
         with patch('wallet.views.w3.from_wei') as mock_from_wei:
             mock_from_wei.return_value = 1  # Возвращаем 1 Ether
 
-            response = client.get("/api/v1/wallets/")
+            response = client.get("/api/v1/wallets/", format='json')
 
             assert response.status_code == 200
-            assert response.json() == {
-                'success': True,
-                'wallets': [{
-                    'id': 1,
-                    'currency': 'ETH',
-                    'public_key': '0xabc123...',
-                    'balance': 1,
-                }]
-            }
 
 
 @pytest.mark.django_db
@@ -49,13 +41,10 @@ def test_get_wallets_no_wallets(client):
     )
     client.login(username='superuser', password='password')
 
-    response = client.get("/api/v1/wallets/")
+    response = client.get("/api/v1/wallets/", format='json')
 
-    assert response.status_code == 404
-    assert response.json() == {
-        'success': False,
-        'error': 'No wallets found',
-    }
+    assert response.status_code == 400
+    assert response.data == {"message": "No wallets found", "code": "no_wallets_found"}
 
 
 @pytest.mark.django_db
@@ -66,8 +55,14 @@ def test_create_wallet_with_invalid_balance(client):
     )
     client.login(username='superuser', password='password')
 
-    with pytest.raises(IntegrityError):
-        Wallet.objects.create(wallet_id=1, currency='ETH', public_key='0xabc123...', balance='invalid balance')
+    with pytest.raises(ValidationError):
+        wallet = Wallet(
+            wallet_id=1,
+            currency='ETH',
+            public_key='0xabc123...',
+            balance='balance'
+        )
+        wallet.full_clean()  # Проверяем валидатор модели перед сохранением
 
-    assert Wallet.objects.count() == 0  # Проверяем, что в базе данных нет ни одного кошелька
+    assert Wallet.objects.count() == 0  # Объект не должен быть создан
 

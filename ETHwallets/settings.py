@@ -11,6 +11,8 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 import os
+
+from celery.schedules import crontab
 from django.db.backends.postgresql.psycopg_any import IsolationLevel
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -171,6 +173,13 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'ETH wallets API',
+    'DESCRIPTION': '',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': True,
+}
+
 WALLET_CURRENCY = "ETH"
 
 REST_FRAMEWORK = {
@@ -183,7 +192,7 @@ REST_FRAMEWORK = {
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': 'redis://localhost :6379/1',
+        'LOCATION': 'redis://localhost:6379/1',
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
         }
@@ -192,17 +201,12 @@ CACHES = {
 
 INFURA_URL = 'https://mainnet.infura.io/v3/6f6838cdab65446288d9bd207f8b1aa4'
 
-CELERY_BEAT_SCHEDULE = {
-    'update-wallet-balances-every-10-minutes': {
-        'task': 'wallet.tasks.update_wallet_balances',
-        'schedule': 30.0,
-    },
-}
+
+PROMETHEUS_METRIC_NAMESPACE = "project"
 
 CELERY_TIMEZONE = 'Europe/Moscow'
 
-CELERY_BROKER_URL = os.environ.get("CELERY_BROKER", 'redis://redis:6379/0')
-CELERY_RESULT_BACKEND = os.environ.get("CELERY_BROKER", 'redis://redis:6379/0')
-
+CELERY_BROKER_URL = os.environ.get("CELERY_BROKER", 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.environ.get("CELERY_BROKER", 'redis://localhost:6379/0')
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'

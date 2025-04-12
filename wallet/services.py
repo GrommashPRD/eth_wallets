@@ -1,4 +1,5 @@
 from wallet.serializers import WalletSerializer
+from django.contrib.auth.decorators import user_passes_test
 from django.conf import settings
 from wallet.models import Wallet, Transaction
 from web3 import Web3
@@ -25,7 +26,7 @@ def new_account(request):
     return new_wallet
 
 
-def from_and_to_address(address_to, address_from):
+def addressToAndFrom(address_to, address_from):
     address_to = Wallet.objects.filter(public_key=address_to).first()
     address_from = Wallet.objects.filter(public_key=address_from).first()
 
@@ -45,3 +46,12 @@ def create_transaction(from_address, to_address, amount):
         amount=amount,
     )
     return transaction
+
+
+def superuser_required(function=None):
+    """
+    :param function:
+    :return:
+    """
+    return user_passes_test(lambda u: u.is_superuser, login_url='/') (function)
+

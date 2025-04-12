@@ -4,7 +4,7 @@ services:
   app:
     image: eth_wallet
     container_name: eth_wallets
-    command: runserver 0.0.0.0:8000 && create_superuser
+    command: runserver 0.0.0.0:8000
     ports:
       - 8000:8000
     env_file:
@@ -12,6 +12,14 @@ services:
     depends_on:
       - redis
       - migrate
+
+  create_superuser:
+    build: .
+    command: create_superuser
+    env_file:
+      - ./.env.dev
+    depends_on:
+      - app
 
   db:
     image: postgres:17
@@ -59,20 +67,13 @@ services:
     command: celery -A ETHwallets flower
     volumes:
       - ./.:/app
+    env_file:
+      - ./.env.celery.flower
     depends_on:
       - app
       - redis
       - celery
       - db
-
-  celery-beat:
-    image: eth_wallet
-    command: celery -A ETHwallets beat
-    volumes:
-      - ./.:/app
-    depends_on:
-      - redis
-      - app
 
   redis:
     image: redis:4-alpine
@@ -80,17 +81,19 @@ services:
       - 6379:6379
     volumes:
       - ./redis/data/:/usr/utils/app
+    env_file:
+      - ./.env.dev
 
 
   prometheus:
-    image: prom/prometheus
+    image: prom/prometheus:v2.53.4
     ports:
       - "9090:9090"
     volumes:
       - "./prometheus.yml:/etc/prometheus/prometheus.yml"
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana-enterprise:11.6.0
     restart: always
     ports:
       - "3000:3000"

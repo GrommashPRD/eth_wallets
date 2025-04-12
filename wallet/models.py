@@ -16,7 +16,7 @@ class Wallet(models.Model):
 class Transaction(models.Model):
     from_wallet = models.ForeignKey(Wallet, related_name='outgoing_transaction', on_delete=models.CASCADE)
     to_wallet = models.ForeignKey(Wallet, related_name='incoming_transaction', on_delete=models.CASCADE)
-    amount = models.DecimalField(max_digits=20, decimal_places=18)
+    amount = models.BigIntegerField()
     timestamp = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

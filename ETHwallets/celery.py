@@ -4,6 +4,6 @@ from celery import Celery
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ETHwallets.settings')
 
-app = Celery('ETHwallets')
+app = Celery('ethwallets')
 app.config_from_object('django.conf:settings', namespace='CELERY')
 app.autodiscover_tasks()

@@ -1,11 +1,12 @@
 openapi: 3.0.3
 info:
-  title: ''
-  version: 0.0.0
+  title: ETH Wallets API
+  version: 1.0.0
 paths:
   /api/v1/transactions/:
     post:
       operationId: api_v1_transactions_create
+      description: Выполнение транзакций     между кошельками     нашей системы
       tags:
       - api
       requestBody:
@@ -34,7 +35,8 @@ paths:
   /api/v1/wallets/:
     get:
       operationId: api_v1_wallets_retrieve
-      description: Только superuser сможет         воспользоваться данным методом
+      description: Только superuser может         воспользоваться данным методом         который
+        отображает кошельки.
       tags:
       - api
       security:
@@ -50,10 +52,7 @@ paths:
           description: ''
     post:
       operationId: api_v1_wallets_create
-      description: |-
-        Создавать кошелек может кто угодно         заданием не определена         аутентификация и авторизация
-        :param request:
-        :return:
+      description: Создание кошелька
       tags:
       - api
       requestBody:
@@ -112,9 +111,10 @@ components:
           type: string
           maxLength: 3
         balance:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,12}(?:\.\d{0,8})?$
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
         public_key:
           type: string
           maxLength: 255
