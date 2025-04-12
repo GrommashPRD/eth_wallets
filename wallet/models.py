@@ -1,14 +1,11 @@
 from django.db import models
 
-# from wallet.blockchain_service import BlockchainService
-
-
 # Create your models here.
 
 class Wallet(models.Model):
     wallet_id = models.AutoField(primary_key=True)
     currency = models.CharField(max_length=3, default='ETH')
-    balance = models.DecimalField(max_digits=20, decimal_places=8, default=0.0)
+    balance = models.BigIntegerField(default=1000000000000000000)
     public_key = models.CharField(max_length=255, unique=True)
     private_key = models.CharField(max_length=255, unique=True)
 
@@ -19,7 +16,7 @@ class Wallet(models.Model):
 class Transaction(models.Model):
     from_wallet = models.ForeignKey(Wallet, related_name='outgoing_transaction', on_delete=models.CASCADE)
     to_wallet = models.ForeignKey(Wallet, related_name='incoming_transaction', on_delete=models.CASCADE)
-    amount = models.DecimalField(max_digits=20, decimal_places=18)
+    amount = models.BigIntegerField()
     timestamp = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

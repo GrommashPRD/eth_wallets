@@ -10,9 +10,10 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
-from pathlib import Path
 import os
+
 from celery.schedules import crontab
+from django.db.backends.postgresql.psycopg_any import IsolationLevel
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -41,6 +42,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'drf_spectacular',
     'django_prometheus',
+    'django_redis'
 ]
 
 MIDDLEWARE = [
@@ -125,7 +127,10 @@ DATABASES = {
         "USER": os.environ.get("DB_USER", "postgres"),
         "PASSWORD": os.environ.get("DB_PASS", "postgress"),
         "HOST": os.environ.get("DB_HOST", "localhost"),
-        "PORT": os.environ.get("DB_PORT", 5432)
+        "PORT": os.environ.get("DB_PORT", 5432),
+        "OPTIONS": {
+            "isolation_level": IsolationLevel.READ_COMMITTED,
+        },
     }
 }
 
@@ -168,6 +173,15 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'ETH wallets API',
+    'DESCRIPTION': '',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': True,
+}
+
+WALLET_CURRENCY = "ETH"
+
 REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
@@ -175,18 +189,24 @@ REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': 'redis://localhost:6379/1',
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        }
+    }
+}
+
 INFURA_URL = 'https://mainnet.infura.io/v3/6f6838cdab65446288d9bd207f8b1aa4'
 
-CELERY_BEAT_SCHEDULE = {
-    'update-wallet-balances-every-10-minutes': {
-        'task': 'wallet.tasks.update_wallet_balances',
-        'schedule': 30.0,  # Например, каждые 10 минут
-    },
-}
+
+PROMETHEUS_METRIC_NAMESPACE = "project"
 
 CELERY_TIMEZONE = 'Europe/Moscow'
 
-CELERY_BROKER_URL = os.environ.get("CELERY_BROKER", 'redis://redis:6379/0')
-CELERY_RESULT_BACKEND = os.environ.get("CELERY_BROKER", 'redis://redis:6379/0')
+CELERY_BROKER_URL = os.environ.get("CELERY_BROKER", 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.environ.get("CELERY_BROKER", 'redis://localhost:6379/0')
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'

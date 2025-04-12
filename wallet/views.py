@@ -1,66 +1,52 @@
-from django.http import JsonResponse
-
+from web3 import Web3
+from django.utils.decorators import method_decorator
+from django.conf import settings
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from wallet.models import Wallet, Transaction
-from wallet.serializers import TransactionSerializer, WalletSerializer
-from django.utils.decorators import method_decorator
-from django.contrib.auth.decorators import user_passes_test
-from django.conf import settings
-from web3 import Web3
-from .metrics import record_request, record_duration
 
-from .tasks import update_wallet_balances
+from wallet.models import Wallet
+from wallet.serializers import TransactionSerializer, WalletSerializer, TransactionValuesErr
 
-import time
+from . import repository
+from .services import new_account, create_transaction, superuser_required, addressToAndFrom
+
+from prometheus_client import Counter
+
 import logging
 
+# Create your views here.
+REQUEST_COUNTER = Counter('http_requests_total', 'Total number of HTTP requests', ['method', 'path'])
+
+wallet_currency = settings.WALLET_CURRENCY
+
 w3 = Web3(Web3.HTTPProvider(settings.INFURA_URL))
+
 logger = logging.getLogger('django')
 
-# Create your views here.
 
-
-def superuser_required(function=None):
-    return user_passes_test(lambda u: u.is_superuser, login_url='/') (function)
-
-
-class WalletViewSet(APIView):
-
+class WalletCreateView(APIView):
     serializer_class = WalletSerializer
 
     def post(self, request):
-
-        start_time = time.time()
-
-        serializer = WalletSerializer(data=request.data)
+        """
+        Создание кошелька
+        """
+        REQUEST_COUNTER.labels(method='POST', path=request.path).inc()
         currency = request.data.get('currency')
 
-        if currency != 'ETH':
+        if currency != wallet_currency:
             logger.warning('Currency is not ETH')
-            return JsonResponse({'error': 'Только ETH разрешен для создания кошелька'}, status=400)
+            return Response({
+                "message": "Currency must be ETH.", "code": "invalid_currency"
+            }, status=400)
 
-        w3 = Web3(Web3.HTTPProvider(settings.INFURA_URL))
-        account = w3.eth.account.create()
-        public_key = account.address
-        private_key = w3.to_hex(account.key)
+        wallet = new_account(request)
 
-        new_wallet = Wallet.objects.create(
-            public_key=public_key,
-            private_key=private_key,
-        )
-        new_wallet.save()
-
-        duration = time.time() - start_time
-        record_request(request.method, request.path)
-        record_duration(request.method, request.path, duration)
-
-        return JsonResponse({
-            'success': True,
+        return Response({
             'wallet': {
-                'id': new_wallet.wallet_id,
-                'currency': new_wallet.currency,
-                'public_key': new_wallet.public_key,
+                'id': wallet.wallet_id,
+                'currency': wallet.currency,
+                'public_key': wallet.public_key,
             }
         }, status=201)
 
@@ -68,98 +54,72 @@ class WalletViewSet(APIView):
     @method_decorator(superuser_required)
     def get(self, request):
         """
-        Только superuser сможет \
-        воспользоваться данным методом
+        Только superuser может \
+        воспользоваться данным методом \
+        который отображает кошельки.
         """
-        start_time = time.time()
+        REQUEST_COUNTER.labels(method='GET', path=request.path).inc()
+        wallets = Wallet.objects.all()
 
-        update_wallet_balances.delay()
-        try:
-            wallets = Wallet.objects.all()
-            if not wallets:
-                logging.warning("No wallets found")
-                return JsonResponse({
-                    'success': False,
-                    'error': 'No wallets found',
-                }, status=404)
+        if not wallets:
+            logger.warning('No wallets found')
+            return Response({"message": "No wallets found", "code": "no_wallets_found"}, status=400)
 
-            wallets_list = []
-            for wallet in wallets:
-                    wallets_list.append({
-                        'id': wallet.wallet_id,
-                        'currency': wallet.currency,
-                        'public_key': wallet.public_key,
-                        'balance': str(wallet.balance),
-                    })
+        prepare_wallets = repository.WalletInformation()
 
-            duration = time.time() - start_time
-            record_request(request.method, request.path)
-            record_duration(request.method, request.path, duration)
+        all_wallets = prepare_wallets.each_wallet_info()
 
-            return JsonResponse({
-                'success': True,
-                'wallets': wallets_list,
-            }, status=200)
-
-        except Exception as e:
-            logging.critical(f'An unexpected error occurred: {str(e)}')
-            return JsonResponse({
-                'success': False,
-                'error': str(e),
-            }, status=500)
+        return Response({"data": all_wallets}, status=200)
 
 
-class TransactionView(APIView):
+
+class WalletTransactionsView(APIView):
+    """
+    Выполнение транзакций \
+    между кошельками \
+    нашей системы
+    """
     serializer_class = TransactionSerializer
 
     def post(self, request):
-        start_time = time.time()
+
+        REQUEST_COUNTER.labels(method='POST', path=request.path).inc()
 
         serializer = self.serializer_class(data=request.data)
 
-        if serializer.is_valid():
-            from_public_key = serializer.validated_data['from_wallet']
-            to_public_key = serializer.validated_data['to_wallet']
-            amount = serializer.validated_data['amount']
-            currency = serializer.validated_data['currency']
+        try:
+            serializer.is_valid()
+        except TransactionValuesErr as err:
+            logger.warning("Serializer validation error %s", err)
+            return Response({"message": "Serializer validation error", "code": "validation_error"}, status=400)
 
+        from_public_key = serializer.validated_data['from_wallet']
+        to_public_key = serializer.validated_data['to_wallet']
+        amount = serializer.validated_data['amount']
+        currency = serializer.validated_data['currency']
 
-            if currency != 'ETH':
-                logger.warning("Invalid currency provided: %s. Only ETH is allowed.", currency)
-                return Response({"detail": "Допустима только валюта ETH."}, status=400)
+        address_to, address_from = addressToAndFrom(to_public_key, from_public_key)
+        amount_to_wei = w3.to_wei(amount, 'ether')
 
-            from_wallet = Wallet.objects.filter(public_key=from_public_key).first()
-            to_wallet = Wallet.objects.filter(public_key=to_public_key).first()
+        if address_from is None or address_to is None:
+            logger.error("Wallet not found - From wallet: %s, To wallet: %s",from_public_key, to_public_key)
+            return Response({"detail": "Wallet not founded", "code": "no_wallet_yet_in_system"}, status=404)
 
-            if from_wallet is None or to_wallet is None:
-                logger.error("Wallet not found - From wallet: %s, To wallet: %s", from_public_key, to_public_key)
-                return Response({"detail": "Кошелек не найден."}, status=404)
-
-
-            if amount > from_wallet.balance:
-                logger.warning("Insufficient funds for wallet %s. Available balance: %s, Requested amount: %s",
-                               from_public_key, from_wallet.balance, amount)
-                return Response({"detail": "Недостаточно средств."}, status=400)
-
-            from_wallet.balance -= amount
-            to_wallet.balance += amount
-            from_wallet.save()
-            to_wallet.save()
-
-            transaction = Transaction.objects.create(
-                from_wallet=from_wallet,
-                to_wallet=to_wallet,
-                amount=amount,
+        if amount_to_wei > address_from.balance:
+            logger.warning(
+                "Insufficient funds for wallet %s. Available balance: %s, Requested amount: %s",
+                from_public_key,
+                address_from.balance,
+                 amount_to_wei
             )
+            return Response({"detail": "Not enough balance.", "code": "amount_>_balance"}, status=400)
 
-            logger.info("Transaction successful - Transaction ID: %s", transaction.id)
-            duration = time.time() - start_time
-            record_request(request.method, request.path)
-            record_duration(request.method, request.path, duration)
-            return Response({"hash": hash(str(transaction.id))}, status=201)
+        transaction = create_transaction(address_from, address_to, amount_to_wei)
 
-        logger.error("Invalid serializer data: %s", serializer.errors)
-        return Response(serializer.errors, status=400)
+        logger.info("Transaction successful - Transaction ID: %s", transaction.id)
+        return Response({"hash": hash(str(transaction.id))}, status=201)
+
+
 
 
 
