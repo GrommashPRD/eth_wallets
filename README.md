@@ -33,11 +33,6 @@ _**Только superuser (root, root) может просматривать с�
 
 **_При запуске контейнера автоматически создается superuser(root, root)._**
 
-```
-curl --location --request GET 'http://127.0.0.1:8000/api/v1/wallets/' \
---header 'Authorization: Basic cm9vdDpyb290' \
---header 'Cookie: csrftoken=cguiLxO9Tw1YJ1tBlIUy8sV7UdG7hTkc'
-```
 
 # 3. Cовершить транзакцию между кошельками системы 
 
@@ -46,7 +41,6 @@ http://127.0.0.1:8000/api/v1/transactions/
 ```
 curl --location --request POST 'http://127.0.0.1:8000/api/v1/transactions/' \
 --header 'Content-Type: application/json' \
---header 'Authorization: Basic cm9vdDpyb290' \
 --header 'Cookie: csrftoken=cguiLxO9Tw1YJ1tBlIUy8sV7UdG7hTkc' \
 --data '{
     "from_wallet": "<ИЗ ПУНКТА 2 БЕРЕТЕ АДРЕС КОШЕЛЬКА>",
