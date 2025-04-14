@@ -57,6 +57,11 @@ MIDDLEWARE = [
     'django_prometheus.middleware.PrometheusAfterMiddleware',
 ]
 
+logs_dir = os.path.join(BASE_DIR, 'logs')
+
+if not os.path.exists(logs_dir):
+    os.makedirs(logs_dir)
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -129,7 +134,7 @@ DATABASES = {
         "HOST": os.environ.get("DB_HOST", "localhost"),
         "PORT": os.environ.get("DB_PORT", 5432),
         "OPTIONS": {
-            "isolation_level": IsolationLevel.READ_COMMITTED,
+            "isolation_level": IsolationLevel.REPEATABLE_READ,
         },
     }
 }

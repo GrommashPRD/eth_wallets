@@ -15,6 +15,7 @@ services:
 
   create_superuser:
     build: .
+    restart: on-failure
     command: create_superuser
     env_file:
       - ./.env.dev

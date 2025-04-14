@@ -18,7 +18,7 @@ def test_successful_transaction(client):
     data = {
         'from_wallet': from_wallet.public_key,
         'to_wallet': to_wallet.public_key,
-        'amount': 0.25,
+        'amount': "0.25",
     }
 
     response = client.post(url, data=data)
@@ -34,22 +34,24 @@ def test_successful_transaction(client):
 
 @pytest.mark.django_db
 def test_insufficient_funds(client):
-    from_wallet = Wallet.objects.create(public_key=str(uuid.uuid4()), private_key=str(uuid.uuid4()), balance=10)
-    to_wallet = Wallet.objects.create(public_key=str(uuid.uuid4()), private_key=str(uuid.uuid4()), balance=50)
+    from_wallet = Wallet.objects.create(public_key=str(uuid.uuid4()), private_key=str(uuid.uuid4()))
+    to_wallet = Wallet.objects.create(public_key=str(uuid.uuid4()), private_key=str(uuid.uuid4()))
 
     url = '/api/v1/transactions/'
 
     data = {
         'from_wallet': from_wallet.public_key,
         'to_wallet': to_wallet.public_key,
-        'amount': 30,
-        'currency': 'ETH'
+        'amount': "30",
     }
 
     response = client.post(url, data=data)
 
     assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert response.data['detail'] == 'Not enough balance.'
+    assert response.data == {
+        "message": "Insufficient funds in the balance",
+        "code": "insufficient_balance"
+    }
 
 
 @pytest.mark.django_db
@@ -65,14 +67,17 @@ def test_wallet_not_found(client):
 
     response = client.post(url, data=data)
 
-    assert response.status_code == status.HTTP_404_NOT_FOUND
-    assert response.data['detail'] == 'Wallet not founded'
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert response.data == {
+                "message": "Address not found ",
+                "code": "address_not_found"
+            }
 
 
 @pytest.mark.django_db
 def test_invalid_currency(client):
-    from_wallet = Wallet.objects.create(public_key=str(uuid.uuid4()), private_key=str(uuid.uuid4()), balance=100)
-    to_wallet = Wallet.objects.create(public_key=str(uuid.uuid4()), private_key=str(uuid.uuid4()), balance=50)
+    from_wallet = Wallet.objects.create(public_key=str(uuid.uuid4()), private_key=str(uuid.uuid4()))
+    to_wallet = Wallet.objects.create(public_key=str(uuid.uuid4()), private_key=str(uuid.uuid4()))
 
     url = '/api/v1/transactions/'
 
@@ -86,7 +91,11 @@ def test_invalid_currency(client):
     response = client.post(url, data=data)
 
     assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert response.data == {"message": "Serializer validation error", "code": "validation_error"}
+    assert response.data == {
+                "message": "Insufficient funds in the balance",
+                "code": "insufficient_balance"
+    }
+
 
 
 @pytest.mark.django_db
@@ -101,5 +110,8 @@ def test_invalid_data(client):
 
     response = client.post(url, data=data, format='json')
 
-    assert response.status_code == status.HTTP_404_NOT_FOUND
-    assert response.data == {"detail": "Wallet not founded", "code": "no_wallet_yet_in_system"}
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert response.data == {
+                "message": "Address not found ",
+                "code": "address_not_found"
+            }
