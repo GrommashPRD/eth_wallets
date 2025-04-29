@@ -1,11 +1,12 @@
 from django.contrib.auth.models import User
 from unittest.mock import patch
-from wallet.models import Wallet
 from django.db import IntegrityError
 from django.core.exceptions import ValidationError
 import pytest
 import logging
 
+from wallet.models import Wallet
+from wallet.repository.walletsRepository import ActionsWithWallets
 
 logger = logging.getLogger('tests')
 
@@ -18,8 +19,6 @@ def test_get_wallets_success(client):
     client.login(username='superuser', password='password')
 
     wallet = Wallet.objects.create(
-        wallet_id=1,
-        currency='ETH',
         public_key='0xabc123...'
     )
 

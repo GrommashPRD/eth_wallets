@@ -3,7 +3,13 @@ global:
   evaluation_interval: 15s
 
 scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ['prometheus:9090']
   - job_name: "django"
     metrics_path: '/prometheus/metrics'
     static_configs:
-      - targets: [ 'web:8000' ]
+      - targets: [ 'app:8000' ]
+  - job_name: flower
+    static_configs:
+      - targets: [ 'flower:5555' ]

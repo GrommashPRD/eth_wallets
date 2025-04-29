@@ -215,3 +215,15 @@ CELERY_BROKER_URL = os.environ.get("CELERY_BROKER", 'redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = os.environ.get("CELERY_BROKER", 'redis://localhost:6379/0')
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
+CELERY_TASK_ALWAYS_EAGER = True
+CELERY_TASK_EAGER_PROPAGATES = True
+
+
+"""
+10^18 WEI = 1 Ethereum, \
+Используем это значение \
+для реализации функционала \
+при выполнении транзакций \
+между кошельками системы.
+"""
+DEFAULT_BALANCE = 1000000000000000000

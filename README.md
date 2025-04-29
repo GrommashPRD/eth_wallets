@@ -3,12 +3,13 @@
 **_Все пункты КЛИКАБЕЛЬНЫЕ._**
 
 # Начало работы:
-1. make start
-2. make stop
-3. make test
-4. make migrate
+Прежде чем запускать `make test`, выполните команды `make venv`, `make install`.
+1. `make start`
+2. `make stop`
+3. `make test`
+4. `make migrate`
 
-[**_Metrics (**клик**)_**](http://127.0.0.1:8000/prometheus/metrics)
+[**Metrics**](http://127.0.0.1:8000/prometheus/metrics)
 
 [**_DOCS_**](http://127.0.0.1:8000/api/docs/)
 

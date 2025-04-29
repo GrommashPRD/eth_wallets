@@ -1,11 +1,12 @@
 from django.db import models
+from django.conf import settings
 
 # Create your models here.
 
 class Wallet(models.Model):
     wallet_id = models.AutoField(primary_key=True)
     currency = models.CharField(max_length=3, default='ETH')
-    balance = models.BigIntegerField(default=1000000000000000000)
+    balance = models.BigIntegerField(default=settings.DEFAULT_BALANCE)
     public_key = models.CharField(max_length=255, unique=True)
     private_key = models.CharField(max_length=255, unique=True)
 

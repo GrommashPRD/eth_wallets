@@ -1,11 +1,10 @@
 from django.contrib.auth.decorators import user_passes_test
 from django.conf import settings
-from wallet.models import Wallet
 from web3 import Web3
 
 import logging
 
-from wallet.walletsRepository import ActionsWithWallets
+from wallet.repository.walletsRepository import ActionsWithWallets
 
 logger = logging.getLogger('django')
 

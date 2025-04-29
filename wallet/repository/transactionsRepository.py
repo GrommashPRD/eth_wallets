@@ -1,13 +1,11 @@
 import logging
 
-from decimal import Decimal
 from django.conf import settings
-from wallet.models import Wallet, Transaction
+from wallet.models import Transaction
 from web3 import Web3
 from django.db import transaction as django_transaction
-from rest_framework.response import Response
 
-from wallet.walletsRepository import ActionsWithWallets, WalletsAddressErros
+from wallet.repository.walletsRepository import ActionsWithWallets, WalletsAddressErros
 
 w3 = Web3(Web3.HTTPProvider(settings.INFURA_URL))
 

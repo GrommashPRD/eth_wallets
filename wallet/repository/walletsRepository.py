@@ -1,5 +1,6 @@
-from .models import Wallet
-from .tasks import update_wallet_balances
+from wallet.models import Wallet
+from wallet.tasks import update_wallet_balances
+from django.core.exceptions import ObjectDoesNotExist
 
 import logging
 
@@ -11,15 +12,21 @@ class WalletsAddressErros(Exception):
 
 class ActionsWithWallets:
 
-    def __init__(self):
-        pass
-
     @staticmethod
     def get_all_wallets():
         """
         Возвращает все кошельки из базы данных.
         """
         return Wallet.objects.all()
+
+    @staticmethod
+    def get_wallet_by_id(wallet_id):
+        try:
+            wallet = Wallet.objects.get(wallet_id=wallet_id)
+            return wallet
+        except WalletsAddressErros:
+            logger.warning('Wallet %s not found' % wallet_id)
+            return None
 
     @staticmethod
     def new_wallet_create(public_key, private_key):
@@ -50,10 +57,10 @@ class ActionsWithWallets:
 
         return address_from, address_to
 
+    @staticmethod
+    def each_wallet_info():
 
-    def each_wallet_info(self):
-
-        all_wallets = self.get_all_wallets()
+        all_wallets = Wallet.objects.all()
 
         wallet_list = []
 
