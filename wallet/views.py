@@ -5,6 +5,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from wallet.serializers import TransactionSerializer, WalletSerializer, TransactionValuesErr
+from wallet.repository.transactionsRepository import InsufficientFundsError
+from wallet.repository.walletsRepository import WalletsAddressErrors
 
 from .repository import transactionsRepository, walletsRepository
 from . import accounts
@@ -13,27 +15,25 @@ from prometheus_client import Counter
 
 import logging
 
-from wallet.repository.transactionsRepository import InsufficientFundsError
-from wallet.repository.walletsRepository import WalletsAddressErros
 
-# Create your views here.
 REQUEST_COUNTER = Counter('http_requests_total', 'Total number of HTTP requests', ['method', 'path'])
 
 wallet_currency = settings.WALLET_CURRENCY
 
 w3 = Web3(Web3.HTTPProvider(settings.INFURA_URL))
 
+wallets_repo = walletsRepository.ActionsWithWallets()
+transaction_repo = transactionsRepository.TransactionCreator()
+
 logger = logging.getLogger('django')
 
 
 class WalletCreateView(APIView):
     serializer_class = WalletSerializer
-    wallets_repo = walletsRepository.ActionsWithWallets()
+
 
     def post(self, request):
-        """
-        Создание кошелька
-        """
+
         REQUEST_COUNTER.labels(method='POST', path=request.path).inc()
         currency = request.data.get('currency')
 
@@ -62,14 +62,7 @@ class WalletCreateView(APIView):
 
     @method_decorator(accounts.superuser_required)
     def get(self, request, repo=wallets_repo):
-        """
-        Только superuser может \
-        воспользоваться данным методом \
-        который отображает кошельки.
-        """
-
         REQUEST_COUNTER.labels(method='GET', path=request.path).inc()
-
         wallets = repo.get_all_wallets()
 
         if not wallets:
@@ -92,23 +85,14 @@ class WalletCreateView(APIView):
         )
 
 
-
 class WalletTransactionsView(APIView):
-    """
-    Выполнение транзакций \
-    между кошельками \
-    нашей системы
-    """
-    serializer_class = TransactionSerializer
-    transaction_repo = transactionsRepository.TransactionCreator()
 
+    serializer_class = TransactionSerializer
 
     def post(self, request, repo=transaction_repo):
-
-
         REQUEST_COUNTER.labels(method='POST', path=request.path).inc()
-
         serializer = self.serializer_class(data=request.data)
+
 
         try:
             serializer.is_valid()
@@ -132,7 +116,6 @@ class WalletTransactionsView(APIView):
         amount_to_wei = w3.to_wei(amount, 'ether')
 
         try:
-
             transaction = repo.process_transaction(
                 from_address=from_public_key,
                 to_address=to_public_key,
@@ -145,7 +128,7 @@ class WalletTransactionsView(APIView):
                 "message": "Insufficient funds in the balance",
                 "code": "insufficient_balance"
             }, status=400)
-        except WalletsAddressErros as er:
+        except WalletsAddressErrors as er:
             logger.warning("Address not found %s", er)
             return Response({
                 "message": "Address not found ",

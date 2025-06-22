@@ -1,37 +1,30 @@
 from wallet.models import Wallet
 from wallet.tasks import update_wallet_balances
-from django.core.exceptions import ObjectDoesNotExist
 
-import logging
-
-logger = logging.getLogger('django')
-
-class WalletsAddressErros(Exception):
+class WalletsAddressErrors(Exception):
     pass
 
-
 class ActionsWithWallets:
+    model = Wallet
 
-    @staticmethod
-    def get_all_wallets():
-        """
-        Возвращает все кошельки из базы данных.
-        """
-        return Wallet.objects.all()
+    def __init__(self):
+        self.WalletManager = self.model
 
-    @staticmethod
-    def get_wallet_by_id(wallet_id):
+
+    def get_all_wallets(self):
+        wallets = self.WalletManager.objects.all()
+        return wallets
+
+    def get_wallet_by_id(self, wallet_id: int):
         try:
-            wallet = Wallet.objects.get(wallet_id=wallet_id)
+            wallet = self.WalletManager.objects.get(wallet_id=wallet_id)
             return wallet
-        except WalletsAddressErros:
-            logger.warning('Wallet %s not found' % wallet_id)
+        except WalletsAddressErrors:
             return None
 
-    @staticmethod
-    def new_wallet_create(public_key, private_key):
+    def new_wallet_create(self, public_key:str, private_key:str):
 
-        new_wallet = Wallet.objects.create(
+        new_wallet = self.WalletManager.objects.create(
             public_key=public_key,
             private_key=private_key,
         )
@@ -39,28 +32,23 @@ class ActionsWithWallets:
 
         return new_wallet
 
-    @staticmethod
-    def wallets_address_find(from_address, to_address):
-        address_from = Wallet.objects.filter(public_key=from_address).first()
-        address_to = Wallet.objects.filter(public_key=to_address).first()
+    def wallets_address_find(self, from_address:str, to_address:str):
+        address_from = self.WalletManager.objects.filter(public_key=from_address).first()
+        address_to = self.WalletManager.objects.filter(public_key=to_address).first()
 
         if address_from is None:
-            logger.warning("Address FROM not found")
-            raise WalletsAddressErros({"message": "Address FROM not found", "code": "from_address_not_found"})
+            raise WalletsAddressErrors({"message": "Address FROM not found", "code": "from_address_not_found"})
 
         if address_to is None:
-            logger.warning("Address TO not found")
-            raise WalletsAddressErros({"message": "Address TO not found", "code": "to_address_not_found"})
+            raise WalletsAddressErrors({"message": "Address TO not found", "code": "to_address_not_found"})
 
         if address_from is None and address_to is None:
-            raise WalletsAddressErros({"message": "Address FROM and address TO not found", "code": "from_and_to_address_not_found"})
+            raise WalletsAddressErrors({"message": "Address FROM and address TO not found", "code": "from_and_to_address_not_found"})
 
         return address_from, address_to
 
-    @staticmethod
-    def each_wallet_info():
-
-        all_wallets = Wallet.objects.all()
+    def each_wallet_info(self):
+        all_wallets = self.get_all_wallets()
 
         wallet_list = []
 

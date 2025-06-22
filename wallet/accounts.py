@@ -5,6 +5,7 @@ from web3 import Web3
 import logging
 
 from wallet.repository.walletsRepository import ActionsWithWallets
+repo = ActionsWithWallets()
 
 logger = logging.getLogger('django')
 
@@ -24,7 +25,7 @@ def new_account(request):
     public_key = account.address
     private_key = w3.to_hex(account.key)
 
-    new_wallet = ActionsWithWallets.new_wallet_create(
+    new_wallet = repo.new_wallet_create(
         public_key=public_key,
         private_key=private_key,
     )

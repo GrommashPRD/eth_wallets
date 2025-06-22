@@ -3,7 +3,7 @@
 **_Все пункты КЛИКАБЕЛЬНЫЕ._**
 
 # Начало работы:
-Прежде чем запускать `make test`, выполните команды `make venv`, `make install`.
+Прежде чем запускать `make test`, выполните команды `make venv`, активируйте venv `source venv/bin/activate`, `make install`.
 1. `make start`
 2. `make stop`
 3. `make test`
@@ -33,6 +33,8 @@ http://127.0.0.1:8000/api/v1/wallets/
 _**Только superuser (root, root) может просматривать списки кошельков.**_
 
 **_При запуске контейнера автоматически создается superuser(root, root)._**
+
+Войти в систему - http://127.0.0.1:8000/api/v1/drf-auth/login
 
 
 # 3. Cовершить транзакцию между кошельками системы 
