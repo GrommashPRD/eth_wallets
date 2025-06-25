@@ -24,7 +24,7 @@ class TestCreateWalletView:
         response = client.post("/api/v1/wallets/", data={'currency': 'BTC'}, content_type='application/json')
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert response.data == {'message': 'Currency must be ETH.', 'code': 'invalid_currency'}
+        assert response.data == {"message": "Invalid currency. Only ETH currencies are supported.",}
 
 
         wallets = Wallet.objects.all()
@@ -35,7 +35,7 @@ class TestCreateWalletView:
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
-        assert response.data == {'message': 'Currency must be ETH.', 'code': 'invalid_currency'}
+        assert response.data == {"message": "Invalid currency. Only ETH currencies are supported.",}
 
         wallets = Wallet.objects.all()
         assert wallets.count() == 0

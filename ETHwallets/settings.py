@@ -14,6 +14,7 @@ import os
 
 from celery.schedules import crontab
 from django.db.backends.postgresql.psycopg_any import IsolationLevel
+from web3 import Web3
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -205,6 +206,7 @@ CACHES = {
 }
 
 INFURA_URL = 'https://mainnet.infura.io/v3/6f6838cdab65446288d9bd207f8b1aa4'
+W3 = Web3(Web3.HTTPProvider(INFURA_URL))
 
 
 PROMETHEUS_METRIC_NAMESPACE = "project"

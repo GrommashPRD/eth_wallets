@@ -1,6 +1,8 @@
 from typing import Union
 
 from django.conf import settings
+
+from wallet.exceptions import InsufficientFundsError
 from wallet.models import Transaction
 from web3 import Web3
 from django.db import transaction as django_transaction
@@ -8,10 +10,6 @@ from django.db import transaction as django_transaction
 from wallet.repository.walletsRepository import ActionsWithWallets, WalletsAddressErrors
 
 w3 = Web3(Web3.HTTPProvider(settings.INFURA_URL))
-
-
-class InsufficientFundsError(Exception):
-    pass
 
 
 class TransactionCreator:
@@ -29,14 +27,13 @@ class TransactionCreator:
                 to_address
             )
         except WalletsAddressErrors:
-            raise WalletsAddressErrors({
-                "message": "Some address is None",
-                "code": "some_address_is_none"
-            })
+            raise
 
         if address_from.balance < amount:
-            raise InsufficientFundsError({"message": "Not enough balance", "code": "insufficient_funds"})
-
+            raise InsufficientFundsError({
+                "message": "Not enough balance",
+                "code": "insufficient_funds"
+            })
         address_from.balance -= amount
         address_to.balance += amount
         address_from.save()

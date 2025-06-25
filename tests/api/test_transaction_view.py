@@ -1,5 +1,4 @@
 import pytest
-from django.urls import reverse
 from rest_framework import status
 from wallet.models import Wallet, Transaction
 import uuid
@@ -24,7 +23,8 @@ def test_successful_transaction(client):
     response = client.post(url, data=data)
 
     assert response.status_code == status.HTTP_201_CREATED
-    assert 'hash' in response.data
+    assert 'message' in response.data
+    assert response.data['message'] == 'OK'
 
     from_wallet.refresh_from_db()
     to_wallet.refresh_from_db()
@@ -49,8 +49,7 @@ def test_insufficient_funds(client):
 
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert response.data == {
-        "message": "Insufficient funds in the balance",
-        "code": "insufficient_balance"
+        "message": "Insufficient funds in the balance"
     }
 
 
@@ -67,11 +66,8 @@ def test_wallet_not_found(client):
 
     response = client.post(url, data=data)
 
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert response.data == {
-                "message": "Address not found ",
-                "code": "address_not_found"
-            }
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert response.data == {"message": "Address 'FROM' not found"}
 
 
 @pytest.mark.django_db
@@ -91,10 +87,7 @@ def test_invalid_currency(client):
     response = client.post(url, data=data)
 
     assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert response.data == {
-                "message": "Insufficient funds in the balance",
-                "code": "insufficient_balance"
-    }
+    assert response.data == {"message": "Insufficient funds in the balance"}
 
 
 
@@ -110,8 +103,5 @@ def test_invalid_data(client):
 
     response = client.post(url, data=data, format='json')
 
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert response.data == {
-                "message": "Address not found ",
-                "code": "address_not_found"
-            }
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert response.data == {"message": "Address 'FROM' not found"}

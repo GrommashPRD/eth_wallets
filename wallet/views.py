@@ -1,149 +1,135 @@
-from web3 import Web3
 from django.utils.decorators import method_decorator
 from django.conf import settings
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from wallet.serializers import TransactionSerializer, WalletSerializer, TransactionValuesErr
-from wallet.repository.transactionsRepository import InsufficientFundsError
-from wallet.repository.walletsRepository import WalletsAddressErrors
+from wallet.serializers import TransactionSerializer, WalletSerializer
+from .exceptions import *
 
 from .repository import transactionsRepository, walletsRepository
 from . import accounts
+from .usecase import usecase
 
 from prometheus_client import Counter
 
 import logging
 
-
+w3 = settings.W3
 REQUEST_COUNTER = Counter('http_requests_total', 'Total number of HTTP requests', ['method', 'path'])
 
 wallet_currency = settings.WALLET_CURRENCY
 
-w3 = Web3(Web3.HTTPProvider(settings.INFURA_URL))
-
-wallets_repo = walletsRepository.ActionsWithWallets()
-transaction_repo = transactionsRepository.TransactionCreator()
-
 logger = logging.getLogger('django')
-
 
 class WalletCreateView(APIView):
     serializer_class = WalletSerializer
-
+    wallets_repo = walletsRepository.ActionsWithWallets()
 
     def post(self, request):
-
         REQUEST_COUNTER.labels(method='POST', path=request.path).inc()
-        currency = request.data.get('currency')
-
-        if currency != wallet_currency:
-            logger.warning('Currency is not ETH')
-            return Response(
-                {
-                "message": "Currency must be ETH.",
-                "code": "invalid_currency"
-                },
-                status=400
-            )
-
-        wallet = accounts.new_account(request)
+        try:
+            wallet = usecase.create_new_wallet(request, repo=self.wallets_repo)
+        except DatabaseOperationError as err:
+            logger.warning('Database operation error %s', err)
+            return Response({
+                "message": "An error occurred when adding an entry"
+            },status=500)
+        except ObjectAlreadyExistsError as err:
+            logger.warning('Object already exists error %s', err)
+            return Response({
+                "message": "Adding object already exists.",
+            },status=400)
+        except InvalidCurrencyError as err:
+            logger.warning('Invalid currency error %s', err)
+            return Response({
+                "message": "Invalid currency. Only ETH currencies are supported.",
+            }, status=400)
 
         return Response({
-            'wallet': {
+            "message": "OK",
+            "wallet": {
                 'id': wallet.wallet_id,
                 'currency': wallet.currency,
                 'public_key': wallet.public_key,
-            }
-        },
-            status=201
-        )
-
+            },
+        }, status=201)
 
     @method_decorator(accounts.superuser_required)
-    def get(self, request, repo=wallets_repo):
+    def get(self, request):
         REQUEST_COUNTER.labels(method='GET', path=request.path).inc()
-        wallets = repo.get_all_wallets()
+        try:
+            wallets = usecase.get_all_wallets_info(repo=self.wallets_repo)
+        except DatabaseOperationError as err:
+            logger.warning('Database operation error %s', err)
+            return Response({
+                "message": "An error occurred when adding an entry"
+            }, status=500)
+        except WalletsNotExistError as err:
+            logger.warning("Wallets doesn't exist %s", err)
+            return Response({
+                "message": "Wallets doesn't exist",
+            }, status=404)
 
-        if not wallets:
-            logger.warning('No wallets found')
-            return Response(
-                {
-                    "message": "No wallets found",
-                    "code": "no_wallets_found"
-                },
-                status=400
-            )
-
-        all_wallets = repo.each_wallet_info()
-
-        return Response(
-            {
-                "data": all_wallets
-            },
-            status=200
-        )
-
+        return Response({
+                "message": "OK",
+                "wallets": wallets,
+        },status=200)
 
 class WalletTransactionsView(APIView):
-
     serializer_class = TransactionSerializer
+    transaction_repo = transactionsRepository.TransactionCreator()
 
-    def post(self, request, repo=transaction_repo):
+    def post(self, request):
         REQUEST_COUNTER.labels(method='POST', path=request.path).inc()
         serializer = self.serializer_class(data=request.data)
 
-
         try:
             serializer.is_valid()
-        except TransactionValuesErr as err:
-            logger.warning(
-                "Serializer validation error %s",
-                err
-            )
+        except ZeroAmountError as err:
+            logger.warning("Serializer validation error %s",err)
             return Response({
-                "message": "Serializer validation error",
-                "code": "validation_error"
-            },
-                status=400
-            )
-
-        amount = serializer.validated_data['amount']
-        from_public_key = serializer.validated_data['from_wallet']
-        to_public_key = serializer.validated_data['to_wallet']
-
-
-        amount_to_wei = w3.to_wei(amount, 'ether')
+                "message": "Amount must be greater than zero.",
+            },status=400)
+        except TransactionAddressErr as err:
+            logger.warning("Serializer validation error %s",err)
+            return Response({
+                "message": "Address cant be empty",
+            }, status=404)
+        except SendPaymentToYourselfError as err:
+            logger.warning("Serializer validation error %s",err)
+            return Response({
+                "message": "You can't send transfers to yourself.",
+            })
 
         try:
-            transaction = repo.process_transaction(
-                from_address=from_public_key,
-                to_address=to_public_key,
-                amount=amount_to_wei,
-            )
-
+            payment = usecase.send_payment(serializer, repo=self.transaction_repo)
         except InsufficientFundsError as e:
             logger.warning("Transaction failed - %s", str(e))
             return Response({
                 "message": "Insufficient funds in the balance",
-                "code": "insufficient_balance"
             }, status=400)
+        except AddressToNotFound as err:
+            logger.warning("Transaction failed - Address 'TO' not found %s", str(err))
+            return Response({
+                "message": "Address 'TO' not found",
+            }, status=404)
+        except AddressFromNotFound as err:
+            logger.warning("Transaction failed - Address 'FROM' not found %s", str(err))
+            return Response({
+                "message": "Address 'FROM' not found",
+            }, status=404)
         except WalletsAddressErrors as er:
             logger.warning("Address not found %s", er)
             return Response({
                 "message": "Address not found ",
-                "code": "address_not_found"
             }, status=400)
 
         logger.info(
             "Transaction successful - Transaction ID: %s",
-            transaction.id
+            payment.id
         )
         return Response(
             {
-                "hash": hash(str(transaction.id))
-            },
-            status=201
-        )
-
-
+                "message": "OK",
+                "transaction ID": hash(str(payment.id))
+            },status=201)
